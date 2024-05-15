@@ -1,16 +1,83 @@
-import * as cdk from 'aws-cdk-lib';
+import { Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-// import * as sqs from 'aws-cdk-lib/aws-sqs';
+import { Dashboard, GraphWidget, Metric } from 'aws-cdk-lib/aws-cloudwatch';
 
-export class CwSqs1Stack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+interface WidgetMetric {
+    namespace: string;
+    metricName: string;
+    dimensionsMap: Record<string, any>;
+    region: string;
+    statistic: string;
+}
+
+interface WidgetProperties {
+    title: string;
+    metrics: WidgetMetric[];
+}
+
+interface WidgetConfig {
+    width: number;
+    height: number;
+    properties: WidgetProperties;
+}
+
+interface WidgetsConfig {
+    widgets: WidgetConfig[];
+}
+
+export class MyDashboardStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    // The code that defines your stack goes here
+    
 
-    // example resource
-    // const queue = new sqs.Queue(this, 'CwSqs1Queue', {
-    //   visibilityTimeout: cdk.Duration.seconds(300)
-    // });
+    // Creating a new dashboard with a unique name
+    const dashboard = new Dashboard(this, 'MyNewDashboard', {
+      dashboardName: 'MyUniqueSQSDashboard' // Ensure this name is unique
+    });
+
+    // Sample data, replace with your actual widgets configuration
+    const widgetsConfig: WidgetsConfig = {
+        widgets: [
+            {
+                width: 12,
+                height: 5,
+                properties: {
+                    title: "Example Widget Title",
+                    metrics: [
+                        {
+                            namespace: "AWS/SQS",
+                            metricName: "NumberOfMessagesSent",
+                            dimensionsMap: {"QueueName": "YourQueueName"},
+                            region: "us-east-1",
+                            statistic: "Sum"
+                        }
+                    ]
+                }
+            }
+        ]
+    };
+
+    // Iterate and create widgets based on the configuration
+    widgetsConfig.widgets.forEach((widget) => {
+      const cwWidget = new GraphWidget({
+        width: widget.width,
+        height: widget.height,
+        title: widget.properties.title
+      });
+
+      widget.properties.metrics.forEach((metric) => {
+        cwWidget.addMetric(new Metric({
+          namespace: metric.namespace,
+          metricName: metric.metricName,
+          dimensionsMap: metric.dimensionsMap,
+          region: metric.region,
+          statistic: metric.statistic,
+        }));
+      });
+
+      dashboard.addWidgets(cwWidget);
+    });
+
   }
 }
